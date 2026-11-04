@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import posixpath
 import tracemalloc
 from pathlib import Path
@@ -29,13 +30,19 @@ def resolve_path(zim, entry):
 
     content = entry.get_item().content
     if b'http-equiv="refresh"' in bytes(content[:256]):
+        print(f'Raw HTML: {bytes(content)!r}', flush=True)
         soup = bs(bytes(content), 'html.parser')
         refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
 
         if refresh:
-            target = refresh['content'].split('URL=', 1)[1]
-            target = unquote(target.strip().strip("'\"").split('#', 1)[0])
-            target = posixpath.normpath(posixpath.join(posixpath.dirname(entry.path), target))
+            print(f'Source: {entry.path}')
+            print(f'Raw refresh: {refresh["content"]!r}', flush=True)
+            target = re.search(rb"""URL='(.*?)'" />""", bytes(content)).group(1).decode('utf-8')
+            target = unquote(target.split('#', 1)[0])
+            trailing_slash = target.endswith('/')
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(entry.path), target)).lstrip('/')
+            target += '/' if trailing_slash and not target.endswith('/') else ''
+            print(f'Resolved target: {target!r}', flush=True)
             return resolve_path(zim, zim.get_entry_by_path(target))
 
     return entry.path
