@@ -29,7 +29,7 @@ def resolve_path(zim, entry):
         return resolve_path(zim, entry.get_redirect_entry())
 
     content = entry.get_item().content
-    if b'http-equiv="refresh"' in bytes(content[:256]):
+    if b'http-equiv="refresh"' in bytes(content[:512]):
         print(f'Raw HTML: {bytes(content)!r}', flush=True)
         soup = bs(bytes(content), 'html.parser')
         refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
@@ -61,9 +61,17 @@ def get_children(zim, path):
 
     html = bytes(entry.get_item().content).decode('utf-8')
     soup = bs(html, 'html.parser')
+    print(f'Title length: {len(soup.title.get_text())} characters')
+    print(
+        f'Meta-refresh offset: {bytes(entry.get_item().content).find(b"http-equiv=" + bytes([34]) + b"refresh" + bytes([34]))} bytes')
     article = soup.select_one('#mw-content-text .mw-parser-output')
 
     if article is None:
+        if article is None:
+            if soup.select_one('link[href$="download_error_placeholder.css"]'):
+                print(f'ZIM article unavailable: {path}', flush=True)
+                return set()
+
         print(f'\nExtraction Failed: {path}')
         print(f'MIME type: {entry.get_item().mimetype}')
         print(f'HTML length: {len(html)}')
