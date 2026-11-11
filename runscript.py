@@ -183,6 +183,7 @@ def store_children(parent_id, children, seed_id, depth):
     with engine.begin() as conn:
         if children:
             for batch in batches(children, 15000):
+                start_write = perf_counter()
                 conn.execute(
                     insert(articles)
                     .values([
@@ -192,6 +193,7 @@ def store_children(parent_id, children, seed_id, depth):
                     .on_conflict_do_nothing(index_elements=['path'])
                 )
                 benchmark['sql_writes'] += 1
+                benchmark['sql_write_time'] += perf_counter() - start_write
 
             child_ids = {}
             for batch in batches(children, 30000):
@@ -206,6 +208,7 @@ def store_children(parent_id, children, seed_id, depth):
                 benchmark['sql_read_time'] += perf_counter() - start_read
 
             for batch in batches(child_ids.values(), 15000):
+                start_write = perf_counter()
                 conn.execute(
                     insert(edges)
                     .values([
@@ -217,8 +220,10 @@ def store_children(parent_id, children, seed_id, depth):
                     )
                 )
                 benchmark['sql_writes'] += 1
+                benchmark['sql_write_time'] += perf_counter() - start_write
 
             for batch in batches(child_ids.values(), 7500):
+                start_write = perf_counter()
                 conn.execute(
                     insert(seed_nodes)
                     .values([
@@ -237,14 +242,18 @@ def store_children(parent_id, children, seed_id, depth):
                     )
                 )
                 benchmark['sql_writes'] += 1
+                benchmark['sql_write_time'] += perf_counter() - start_write
 
+        start_write = perf_counter()
         conn.execute(
             sa.update(articles)
             .where(articles.c.id == parent_id)
             .values(scanned=True)
         )
         benchmark['sql_writes'] += 1
+        benchmark['sql_write_time'] += perf_counter() - start_write
 
+        start_write = perf_counter()
         conn.execute(
             sa.update(seed_nodes)
             .where(
@@ -254,6 +263,7 @@ def store_children(parent_id, children, seed_id, depth):
             .values(expanded=True)
         )
         benchmark['sql_writes'] += 1
+        benchmark['sql_write_time'] += perf_counter() - start_write
 
     benchmark['sql_transaction_time'] += perf_counter() - start
 
@@ -323,12 +333,14 @@ def main():
 
     start_sql = perf_counter()
     with engine.begin() as conn:
+        start_write = perf_counter()
         conn.execute(
             insert(articles).values(
                 path=seed_entry, scanned=False
             ).on_conflict_do_nothing(index_elements=['path'])
         )
         benchmark['sql_writes'] += 1
+        benchmark['sql_write_time'] += perf_counter() - start_write
     benchmark['sql_transaction_time'] += perf_counter() - start_sql
 
     start_sql = perf_counter()
