@@ -81,6 +81,11 @@ for %%F in ("%DB%" "%DB%-wal" "%DB%-shm") do (
         )
     )
 )
+"%PYTHON%" database.py
+if errorlevel 1 (
+    echo ERROR: Database initialization failed.
+    exit /b 1
+)
 exit /b 0
 
 :run
