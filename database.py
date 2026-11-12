@@ -9,11 +9,13 @@ db_path.parent.mkdir(parents=True, exist_ok=True)
 
 engine = sa.create_engine(f"sqlite:///{db_path.as_posix()}")
 
+
 @event.listens_for(engine, "connect")
-def enable_foreign_keys(dbapi_connection, connection_record):
+def enable_foreign_keys(dbapi_connection, _connection_record):
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
+
 
 metadata = sa.MetaData()
 
