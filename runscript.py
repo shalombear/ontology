@@ -2,6 +2,8 @@ import sys
 import re
 import posixpath
 import tracemalloc
+import csv
+import json
 from pathlib import Path
 from time import perf_counter
 from urllib.parse import unquote
@@ -392,6 +394,25 @@ def main():
     benchmark['peak_python_mib'] = peak / 1024 ** 2
     benchmark['elapsed_seconds'] = perf_counter() - start
     benchmark['database_bytes'] = db_path.stat().st_size
+
+    results_path = Path(__file__).resolve().parent / 'benchmarks' / 'results.csv'
+
+    row = {
+        'version': sys.argv[3] if len(sys.argv) > 3 else '',
+        'test_id': sys.argv[4] if len(sys.argv) > 4 else '',
+        'seed': seed,
+        'depth': max_depth,
+        **benchmark
+    }
+
+    row['frontier_sizes'] = json.dumps(row['frontier_sizes'])
+
+    with results_path.open('r', newline='', encoding='utf-8') as file:
+        columns = next(csv.reader(file))
+
+    with results_path.open('a', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=columns)
+        writer.writerow(row)
 
 
 if __name__ == '__main__':

@@ -10,7 +10,8 @@ Starting from a specified Wikipedia article, the crawler traverses internal link
 
 The architecture supports multiple independent seed articles, configurable traversal depths, and reuse of previously extracted article relationships.
 
-The current implementation provides functional crawling, persistent graph storage, and performance instrumentation. Reproducible benchmarking and subsequent optimization remain development objectives.
+The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Baseline evaluation, comparative analysis, and subsequent optimization remain development objectives.
+
 ## Features
 
 - Offline Wikipedia extraction using `libzim`.
@@ -28,10 +29,13 @@ The current implementation provides functional crawling, persistent graph storag
 - Performance instrumentation for ZIM operations, HTML parsing, link processing, and SQLite reads, writes, and transactions.
 - Tracking of cache hits, cache misses, visited articles, processed edges, and BFS frontier sizes.
 - Measurement of total execution time, peak Python memory allocation, and SQLite database size.
+- Automated benchmark execution using `runtest.bat`.
+- Controlled SQLite database resets between benchmark test cases.
+- CSV persistence of benchmark measurements, test identifiers, and optimization versions.
 
 ## Architecture
 
-The project consists of two Python modules:
+The project consists of two Python modules and a Windows batch script:
 
 ### `runscript.py`
 
@@ -46,7 +50,8 @@ Implements the crawling workflow:
 7. Read previously stored relationships when available.
 8. Persist newly discovered articles and edges.
 9. Track traversal state independently for each seed.
-10. 10. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
+10. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
+11. Append benchmark measurements to the results CSV.
 
 ### `database.py`
 
@@ -65,6 +70,17 @@ Article relationships are stored globally, while traversal depth and expansion s
 
 This design permits overlapping crawls without unnecessarily repeating previously completed article extraction.
 
+### `runtest.bat`
+
+Automates the benchmark suite across multiple traversal configurations.
+
+1. Accept an optimization version identifier or retrieve the current Git commit hash.
+2. Execute 10 benchmark test cases comprising 16 crawler executions.
+3. Reset the SQLite database between independent test cases.
+4. Preserve database state between consecutive crawls within paired tests.
+5. Pass the version and test identifier to `runscript.py`.
+6. Stop execution if a test fails.
+
 ## Project Structure
 
 ```text
@@ -76,8 +92,11 @@ projects/
 │       └── wikipull.db
 └── ontology/
     ├── .gitignore
+    ├── benchmarks/
+    │   └── results.csv
     ├── database.py
     ├── runscript.py
+    ├── runtest.bat
     └── README.md
 ```
 
@@ -98,14 +117,14 @@ Additional dependencies may be required depending on the development environment
 
 **Instrumented prototype**
 
-Core extraction, traversal, persistence, and performance instrumentation have been implemented. Benchmark reporting, automated test execution, and performance comparisons remain pending.
+Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, and CSV result collection have been implemented. Baseline testing and cross-version performance analysis remain pending.
+
 The project remains under active development and is not considered production-ready.
 
 Current limitations:
 
 - Functional correctness has not been comprehensively validated.
-- Performance instrumentation is implemented, but benchmark results are not yet systematically collected or compared.
-- Benchmark metrics are collected in memory but are not yet reported or persisted to disk.
+- Automated benchmark execution and CSV persistence are implemented, but baseline results and cross-version comparisons have not yet been established.
 - Error handling and recovery require further hardening.
 - Database and traversal performance have not been optimized.
 - Scalability at greater graph depths remains to be established.
@@ -115,7 +134,7 @@ Preliminary execution has demonstrated shallow and deeper crawls, but these obse
 ## Development Roadmap
 
 1. Establish reproducible functional tests.
-2. Complete benchmark reporting, automated execution, and reproducible baseline testing.
+2. Establish reproducible benchmark baselines and implement cross-version performance analysis.
 3. Improve error handling and recovery.
 4. Optimize extraction and database operations.
 5. Evaluate performance across multiple seeds and traversal depths.
