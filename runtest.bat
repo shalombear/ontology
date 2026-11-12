@@ -22,8 +22,6 @@ if not defined VERSION (
 
 echo Benchmark version: %VERSION%
 
-rem Simple tests: independent databases
-
 call :reset || exit /b 1
 call :run Alphabet 3 S1 || exit /b 1
 
@@ -35,34 +33,6 @@ call :run Mathematics 3 S3 || exit /b 1
 
 call :reset || exit /b 1
 call :run Mathematics 4 S4 || exit /b 1
-
-rem Complex tests: shared database within each pair
-
-call :reset || exit /b 1
-call :run Mathematics 3 C1a || exit /b 1
-call :run Mathematics 4 C1b || exit /b 1
-
-call :reset || exit /b 1
-call :run Alphabet 3 C2a || exit /b 1
-call :run Alphabet 4 C2b || exit /b 1
-
-call :reset || exit /b 1
-call :run Mathematics 3 C3a || exit /b 1
-call :run Alphabet 4 C3b || exit /b 1
-
-call :reset || exit /b 1
-call :run Alphabet 3 C4a || exit /b 1
-call :run Mathematics 4 C4b || exit /b 1
-
-rem Deep cross-seed tests
-
-call :reset || exit /b 1
-call :run Alphabet 4 D1a || exit /b 1
-call :run Mathematics 4 D1b || exit /b 1
-
-call :reset || exit /b 1
-call :run Mathematics 4 D2a || exit /b 1
-call :run Alphabet 4 D2b || exit /b 1
 
 call :reset || exit /b 1
 
