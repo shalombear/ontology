@@ -41,13 +41,21 @@ drops += ', .references, .mw-references, .external-links, .authority-control, .s
 drops += ', .ambox, .ombox, .vertical-navbox, .infobox'
 
 
-def resolve_path(zim, entry):
+def resolve_path(zim, entry, path_cache):
+    original_path = entry.path
+
+    if original_path in path_cache:
+        return path_cache[original_path]
+
     if entry.is_redirect:
         start = perf_counter()
         target_entry = entry.get_redirect_entry()
         benchmark['zim_operations'] += 1
         benchmark['zim_time'] += perf_counter() - start
-        return resolve_path(zim, target_entry)
+
+        resolved_path = resolve_path(zim, target_entry, path_cache)
+        path_cache[original_path] = resolved_path
+        return resolved_path
 
     start = perf_counter()
     content = entry.get_item().content
@@ -70,9 +78,13 @@ def resolve_path(zim, entry):
             target_entry = zim.get_entry_by_path(target)
             benchmark['zim_operations'] += 1
             benchmark['zim_time'] += perf_counter() - start
-            return resolve_path(zim, target_entry)
+            resolved_path = resolve_path(zim, target_entry, path_cache)
+            path_cache[original_path] = resolved_path
 
-    return entry.path
+            return resolved_path
+
+    path_cache[original_path] = original_path
+    return original_path
 
 
 def batches(items, size=1000):
@@ -82,13 +94,16 @@ def batches(items, size=1000):
         yield items[i:i+size]
 
 
-def get_children(zim, path):
-    zim_start = perf_counter()
-    entry = zim.get_entry_by_path(path)
-    benchmark['zim_operations'] += 1
-    benchmark['zim_time'] += perf_counter() - zim_start
+def get_children(zim, path, path_cache):
+    if path in path_cache:
+        path = path_cache[path]
+    else:
+        zim_start = perf_counter()
+        entry = zim.get_entry_by_path(path)
+        benchmark['zim_operations'] += 1
+        benchmark['zim_time'] += perf_counter() - zim_start
 
-    path = resolve_path(zim, entry)
+        path = resolve_path(zim, entry, path_cache)
 
     start = perf_counter()
     entry = zim.get_entry_by_path(path)
@@ -131,6 +146,10 @@ def get_children(zim, path):
     resolved_paths = set()
 
     for child_path in paths:
+        if child_path in path_cache:
+            resolved_paths.add(path_cache[child_path])
+            continue
+
         zim_start = perf_counter()
         exists = zim.has_entry_by_path(child_path)
         benchmark['zim_operations'] += 1
@@ -142,7 +161,7 @@ def get_children(zim, path):
             benchmark['zim_operations'] += 1
             benchmark['zim_time'] += perf_counter() - zim_start
 
-            resolved_paths.add(resolve_path(zim, child_entry))
+            resolved_paths.add(resolve_path(zim, child_entry, path_cache))
 
     resolved_paths.discard(path)
     benchmark['link_processing_time'] += perf_counter() - start
@@ -270,7 +289,7 @@ def store_children(parent_id, children, seed_id, depth):
     benchmark['sql_transaction_time'] += perf_counter() - start
 
 
-def crawl(zim, seed_entry, seed_id, max_depth):
+def crawl(zim, seed_entry, seed_id, max_depth, path_cache):
     depth = 1
     frontier = {seed_entry}
     visited = {seed_entry}
@@ -299,7 +318,7 @@ def crawl(zim, seed_entry, seed_id, max_depth):
             children = get_stored_children(parent_id)
 
             if children is None:
-                children = get_children(zim, path)
+                children = get_children(zim, path, path_cache)
 
             store_children(parent_id, children, seed_id, depth + 1)
             benchmark['edges_processed'] += len(children)
@@ -316,6 +335,7 @@ def main():
     tracemalloc.start()
 
     zim = Archive(zim_path)
+    path_cache = {}
     seed = sys.argv[1] if len(sys.argv) > 1 else input('Seed article: ').strip()
     max_depth = int(sys.argv[2] if len(sys.argv) > 2 else input('Maximum depth: ').strip())
 
@@ -324,14 +344,14 @@ def main():
         entry = zim.get_entry_by_path(seed)
         benchmark['zim_operations'] += 1
         benchmark['zim_time'] += perf_counter() - start_zim
-        seed_entry = resolve_path(zim, entry)
+        seed_entry = resolve_path(zim, entry, path_cache)
     except KeyError:
         seed = input('That was not a valid seed. Try something useful (e.g. Mathematics): ').strip()
         start_zim = perf_counter()
         entry = zim.get_entry_by_path(seed)
         benchmark['zim_operations'] += 1
         benchmark['zim_time'] += perf_counter() - start_zim
-        seed_entry = resolve_path(zim, entry)
+        seed_entry = resolve_path(zim, entry, path_cache)
 
     start_sql = perf_counter()
     with engine.begin() as conn:
@@ -387,7 +407,7 @@ def main():
         benchmark['sql_write_time'] += perf_counter() - start_write
     benchmark['sql_transaction_time'] += perf_counter() - start_sql
 
-    crawl(zim, seed_entry, seed_id, max_depth)
+    crawl(zim, seed_entry, seed_id, max_depth, path_cache)
 
     _, peak = tracemalloc.get_traced_memory()
 

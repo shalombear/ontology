@@ -20,6 +20,7 @@ The current implementation provides functional crawling, persistent graph storag
 - Configurable seed articles and maximum traversal depth.
 - Internal hyperlink extraction and deduplication.
 - Wikipedia redirect resolution, including HTML meta-refresh redirects.
+- In-memory caching of resolved article paths within each crawler execution.
 - Filtering of navigational elements, references, and other non-content HTML.
 - Persistent article and directed-edge storage.
 - Support for multiple seed articles and overlapping traversal graphs.
@@ -32,26 +33,24 @@ The current implementation provides functional crawling, persistent graph storag
 - Automated benchmark execution using `runtest.bat`.
 - Controlled SQLite database resets between benchmark test cases.
 - CSV persistence of benchmark measurements, test identifiers, and optimization versions.
+- Automated cross-version benchmark analysis, comparing cumulative gains against v0 and incremental changes against the preceding version.
 
 ## Architecture
 
-The project consists of two Python modules and a Windows batch script:
-
+The project consists of two Python modules, a Windows batch script, and a PowerShell benchmark analyzer:
 ### `runscript.py`
 
 Implements the crawling workflow:
 
 1. Open the Wikipedia ZIM archive.
-2. Accept a seed article and maximum traversal depth.
-3. Resolve the seed article.
-4. Retrieve and parse its HTML content.
-5. Extract and resolve internal article links.
-6. Traverse the resulting graph using BFS.
-7. Read previously stored relationships when available.
-8. Persist newly discovered articles and edges.
-9. Track traversal state independently for each seed.
-10. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
-11. Append benchmark measurements to the results CSV.
+2. Accept a seed article, maximum traversal depth, and optional benchmark version and test identifier.
+3. Extract and resolve internal article links. 
+4. Traverse the resulting graph using BFS. 
+5. Read previously stored relationships when available.
+6. Persist newly discovered articles and edges.
+7. Track traversal state independently for each seed.
+8. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
+9. Append benchmark measurements to the results CSV.
 
 ### `database.py`
 
@@ -81,6 +80,19 @@ Automates the benchmark suite across multiple traversal configurations.
 5. Pass the version and test identifier to `runscript.py`.
 6. Stop execution if a test fails.
 
+### `analyze_benchmarks.ps1`
+
+Analyzes benchmark measurements collected in
+`benchmarks/results.csv`.
+
+1. Read benchmark results across optimization versions.
+2. Match executions by test identifier.
+3. Compare each version against the v0 baseline.
+4. Compare each version against its immediate predecessor.
+5. Calculate absolute measurements and percentage changes.
+6. Report missing test results and reject duplicate records.
+7. Generate `benchmarks/benchmark_results.md`.
+
 ## Project Structure
 
 ```text
@@ -92,15 +104,19 @@ projects/
 │       └── wikipull.db
 └── ontology/
     ├── .gitignore
+    ├── analyze_benchmarks.ps1
     ├── benchmarks/
-    │   └── results.csv
+    │   ├── results.csv
+    │   └── benchmark_results.md
     ├── database.py
     ├── runscript.py
     ├── runtest.bat
     └── README.md
 ```
 
-The Wikipedia archive and SQLite database reside outside the Git repository and are not version-controlled.
+The Wikipedia ZIM archive and SQLite database reside outside the Git repository and are not version-controlled.
+
+Benchmark findings and optimization decisions will be documented in `benchmarks/report.md`. The analyzer will generate `benchmarks/benchmark_results.md` when comparative data across versions is available.
 
 ## Requirements
 
@@ -115,16 +131,15 @@ Additional dependencies may be required depending on the development environment
 
 ## Current Status
 
-**Instrumented prototype**
+**Instrumented and benchmark-enabled prototype**
 
-Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, and CSV result collection have been implemented. Baseline testing and cross-version performance analysis remain pending.
-
+Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, CSV result collection, and comparative benchmark analysis have been implemented. Baseline testing and validation of cross-version comparisons remain pending.
 The project remains under active development and is not considered production-ready.
 
 Current limitations:
 
 - Functional correctness has not been comprehensively validated.
-- Automated benchmark execution and CSV persistence are implemented, but baseline results and cross-version comparisons have not yet been established.
+- Automated benchmarking and comparative analysis are implemented, but cross-version performance results have not yet been validated.
 - Error handling and recovery require further hardening.
 - Database and traversal performance have not been optimized.
 - Scalability at greater graph depths remains to be established.
@@ -134,7 +149,7 @@ Preliminary execution has demonstrated shallow and deeper crawls, but these obse
 ## Development Roadmap
 
 1. Establish reproducible functional tests.
-2. Establish reproducible benchmark baselines and implement cross-version performance analysis.
+2. Establish reproducible benchmark baselines and validate cross-version performance comparisons.
 3. Improve error handling and recovery.
 4. Optimize extraction and database operations.
 5. Evaluate performance across multiple seeds and traversal depths.

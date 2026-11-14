@@ -37,6 +37,10 @@ call :run Mathematics 4 S4 || exit /b 1
 call :reset || exit /b 1
 
 echo Benchmark suite completed.
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0analyze_benchmarks.ps1"
+if errorlevel 1 exit /b 1
+
 exit /b 0
 
 :reset
