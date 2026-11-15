@@ -18,6 +18,14 @@ from database import engine, articles, edges, seeds, seed_nodes, db_path
 projects = Path(__file__).resolve().parent.parent
 zim_path = projects / 'data' / 'wiki' / 'wikipedia_en_all_nopic_2026-06.zim'
 
+exclusion_time = 0.0
+anchor_time = 0.0
+path_time = 0.0
+resolution_time = 0.0
+
+
+
+
 benchmark = {
     'zim_operations': 0,
     'cache_hits': 0,
@@ -39,6 +47,13 @@ drops = '.hatnote, .sidebar, .navbox, .mw-references-wrap, .mw-cite-backlink, .m
 drops += ', .reference, .cite-bracket, .Z3988, .refbegin, .toclimit-3, style, .mw-empty-elt, .reflist'
 drops += ', .references, .mw-references, .external-links, .authority-control, .sistersitebox, .metadata'
 drops += ', .ambox, .ombox, .vertical-navbox, .infobox'
+
+
+def batches(items, size=1000):
+    items = list(items)
+
+    for i in range(0, len(items), size):
+        yield items[i:i+size]
 
 
 def resolve_path(zim, entry, path_cache):
@@ -87,13 +102,6 @@ def resolve_path(zim, entry, path_cache):
     return original_path
 
 
-def batches(items, size=1000):
-    items = list(items)
-
-    for i in range(0, len(items), size):
-        yield items[i:i+size]
-
-
 def get_children(zim, path, path_cache):
     if path in path_cache:
         path = path_cache[path]
@@ -133,16 +141,29 @@ def get_children(zim, path, path_cache):
         raise RuntimeError(f'Article container missing: {path}')
 
     start = perf_counter()
+    drop_start = perf_counter()
+
     for element in article.select(drops):
         element.decompose()
 
+    global exclusion_time
+    exclusion_time += perf_counter() - drop_start
+
+    anchor_start = perf_counter()
     links = [
         link for link in article.find_all('a', href=True)
         if not link['href'].startswith(('#', 'http:', 'https:', '//'))
         and 'external' not in link.get('class', [])
     ]
-    paths = {unquote(link['href'].split('#', 1)[0]) for link in links}
+    global anchor_time
+    anchor_time += perf_counter() - anchor_start
 
+    path_start = perf_counter()
+    paths = {unquote(link['href'].split('#', 1)[0]) for link in links}
+    global path_time
+    path_time+= perf_counter() - path_start
+
+    resolution_start = perf_counter()
     resolved_paths = set()
 
     for child_path in paths:
@@ -162,6 +183,9 @@ def get_children(zim, path, path_cache):
         resolved_paths.add(resolve_path(zim, child_entry, path_cache))
 
     resolved_paths.discard(path)
+    global resolution_time
+    resolution_time += perf_counter() - resolution_start
+
     benchmark['link_processing_time'] += perf_counter() - start
 
     return resolved_paths
@@ -425,12 +449,17 @@ def main():
 
     row['frontier_sizes'] = json.dumps(row['frontier_sizes'])
 
-    with results_path.open('r', newline='', encoding='utf-8') as file:
-        columns = next(csv.reader(file))
+    # with results_path.open('r', newline='', encoding='utf-8') as file:
+    #     columns = next(csv.reader(file))
+    #
+    # with results_path.open('a', newline='', encoding='utf-8') as file:
+    #     writer = csv.DictWriter(file, fieldnames=columns)
+    #     writer.writerow(row)
 
-    with results_path.open('a', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=columns)
-        writer.writerow(row)
+    print('Exclusion time:', exclusion_time)
+    print('Anchor time:', anchor_time)
+    print('Path time:', path_time)
+    print('Resolution_time', resolution_time)
 
 
 if __name__ == '__main__':
