@@ -151,17 +151,15 @@ def get_children(zim, path, path_cache):
             continue
 
         zim_start = perf_counter()
-        exists = zim.has_entry_by_path(child_path)
-        benchmark['zim_operations'] += 1
-        benchmark['zim_time'] += perf_counter() - zim_start
-
-        if exists:
-            zim_start = perf_counter()
+        try:
             child_entry = zim.get_entry_by_path(child_path)
+        except KeyError:
+            continue
+        finally:
             benchmark['zim_operations'] += 1
             benchmark['zim_time'] += perf_counter() - zim_start
 
-            resolved_paths.add(resolve_path(zim, child_entry, path_cache))
+        resolved_paths.add(resolve_path(zim, child_entry, path_cache))
 
     resolved_paths.discard(path)
     benchmark['link_processing_time'] += perf_counter() - start
@@ -426,13 +424,14 @@ def main():
     }
 
     row['frontier_sizes'] = json.dumps(row['frontier_sizes'])
+    print(row)
 
-    with results_path.open('r', newline='', encoding='utf-8') as file:
-        columns = next(csv.reader(file))
-
-    with results_path.open('a', newline='', encoding='utf-8') as file:
-        writer = csv.DictWriter(file, fieldnames=columns)
-        writer.writerow(row)
+    # with results_path.open('r', newline='', encoding='utf-8') as file:
+    #     columns = next(csv.reader(file))
+    #
+    # with results_path.open('a', newline='', encoding='utf-8') as file:
+    #     writer = csv.DictWriter(file, fieldnames=columns)
+    #     writer.writerow(row)
 
 
 if __name__ == '__main__':
