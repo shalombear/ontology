@@ -10,45 +10,40 @@ Starting from a specified Wikipedia article, the crawler traverses internal link
 
 The architecture supports multiple independent seed articles, configurable traversal depths, and reuse of previously extracted article relationships.
 
-The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Baseline evaluation, comparative analysis, and subsequent optimization remain development objectives.
+The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching and single-pass link extraction that skips excluded HTML subtrees.
 
 ## Features
 
-- Offline Wikipedia extraction using `libzim`.
-- HTML parsing using BeautifulSoup.
-- Breadth-first traversal of article relationships.
-- Configurable seed articles and maximum traversal depth.
-- Internal hyperlink extraction and deduplication.
+- Offline Wikipedia article extraction from ZIM archives.
+- Breadth-first traversal with configurable seed article and depth.
+- Internal hyperlink extraction and deduplication, with filtering of navigational elements, references, and other non-content HTML.
 - Wikipedia redirect resolution, including HTML meta-refresh redirects.
-- In-memory caching of resolved article paths within each crawler execution.
-- Filtering of navigational elements, references, and other non-content HTML.
-- Persistent article and directed-edge storage.
-- Support for multiple seed articles and overlapping traversal graphs.
-- Tracking of article discovery depth and expansion status for each seed.
-- Reuse of previously scanned article relationships.
-- SQLite storage through SQLAlchemy.
-- Performance instrumentation for ZIM operations, HTML parsing, link processing, and SQLite reads, writes, and transactions.
-- Tracking of cache hits, cache misses, visited articles, processed edges, and BFS frontier sizes.
-- Measurement of total execution time, peak Python memory allocation, and SQLite database size.
-- Automated benchmark execution using `runtest.bat`.
-- Controlled SQLite database resets between benchmark test cases.
-- CSV persistence of benchmark measurements, test identifiers, and optimization versions.
-- Automated cross-version benchmark analysis, comparing cumulative gains against v0 and incremental changes against the preceding version.
+- Persistent article and directed-edge storage in SQLite.
+- Support for overlapping seed graphs with independent discovery-depth and expansion tracking.
+- Reuse of previously extracted article relationships.
+ 
+## Benchmarking
+
+- Performance instrumentation for ZIM operations, HTML parsing, link processing, and database operations.
+- Tracking of traversal counts, database cache usage, execution time, peak Python memory allocation, and database size.
+- Automated benchmark execution with controlled database resets.
+- CSV recording of benchmark measurements, test identifiers, and optimization versions.
+- Automated cross-version analysis against the baseline and the immediately preceding version.
 
 ## Architecture
 
 The project consists of two Python modules, a Windows batch script, and a PowerShell benchmark analyzer:
+
 ### `runscript.py`
 
 Implements the crawling workflow:
 
 1. Open the Wikipedia ZIM archive.
 2. Accept a seed article, maximum traversal depth, and optional benchmark version and test identifier.
-3. Extract and resolve internal article links. 
-4. Traverse the resulting graph using BFS. 
-5. Read previously stored relationships when available.
-6. Persist newly discovered articles and edges.
-7. Track traversal state independently for each seed.
+3. Resolve the seed article and initialize its traversal state.
+4. Traverse articles breadth-first, reusing stored relationships when available.
+5. For unscanned articles, collect internal links in a single traversal that skips excluded HTML subtrees, then resolve their destinations.
+6. Persist article relationships and update discovery depth and expansion status for the current seed.
 8. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
 9. Append benchmark measurements to the results CSV.
 
@@ -108,6 +103,7 @@ projects/
     ├── benchmarks/
     │   ├── results.csv
     │   ├── v0_benchmark_results.md
+    │   ├── v1_benchmark_results.md   
     │   └── benchmark_results.md
     ├── database.py
     ├── runscript.py
@@ -117,7 +113,7 @@ projects/
 
 The Wikipedia ZIM archive and SQLite database reside outside the Git repository and are not version-controlled.
 
-Benchmark findings and optimization decisions will be documented in `benchmarks/report.md`. The analyzer will generate `benchmarks/benchmark_results.md` when comparative data across versions is available.
+Benchmark findings and optimization decisions are documented in version-specific reports under `benchmarks/`. The analyzer generates `benchmarks/benchmark_results.md` from the recorded measurements.
 
 ## Requirements
 
@@ -132,25 +128,22 @@ Additional dependencies may be required depending on the development environment
 
 ## Current Status
 
-**Instrumented and benchmark-enabled prototype**
+Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, CSV result collection, and comparative benchmark analysis have been implemented. Baseline and path-cache comparisons are complete for tests S1-S4. Single-pass link extraction has been implemented and manually tested.
 
-Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, CSV result collection, and comparative benchmark analysis have been implemented. Baseline testing and validation of cross-version comparisons remain pending.
 The project remains under active development and is not considered production-ready.
 
-Current limitations:
+## Current limitations:
 
 - Functional correctness has not been comprehensively validated.
-- Automated benchmarking and comparative analysis are implemented, but cross-version performance results have not yet been validated.
+- Cross-version comparisons cover tests S1-S4; the remaining benchmark cases and repeated measurements are pending.
 - Error handling and recovery require further hardening.
-- Database and traversal performance have not been optimized.
+- Database operations and BFS traversal are candidates for further optimization.
 - Scalability at greater graph depths remains to be established.
-
-Preliminary execution has demonstrated shallow and deeper crawls, but these observations do not constitute a validated benchmark suite.
 
 ## Development Roadmap
 
 1. Establish reproducible functional tests.
-2. Establish reproducible benchmark baselines and validate cross-version performance comparisons.
+2. Complete the remaining benchmark cases and repeat measurements to assess variability and validate cross-version performance comparisons.
 3. Improve error handling and recovery.
 4. Optimize extraction and database operations.
 5. Evaluate performance across multiple seeds and traversal depths.
