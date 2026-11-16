@@ -437,14 +437,13 @@ def main():
     }
 
     row['frontier_sizes'] = json.dumps(row['frontier_sizes'])
-    print(row)
 
-    # with results_path.open('r', newline='', encoding='utf-8') as file:
-    #     columns = next(csv.reader(file))
-    #
-    # with results_path.open('a', newline='', encoding='utf-8') as file:
-    #     writer = csv.DictWriter(file, fieldnames=columns)
-    #     writer.writerow(row)
+    with results_path.open('r', newline='', encoding='utf-8') as file:
+        columns = next(csv.reader(file))
+
+    with results_path.open('a', newline='', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=columns)
+        writer.writerow(row)
 
 
 if __name__ == '__main__':
