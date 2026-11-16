@@ -28,7 +28,7 @@ The current implementation provides functional crawling, persistent graph storag
 - Tracking of traversal counts, database cache usage, execution time, peak Python memory allocation, and database size.
 - Automated benchmark execution with controlled database resets.
 - CSV recording of benchmark measurements, test identifiers, and optimization versions.
-- Automated cross-version analysis against the baseline and the immediately preceding version.
+- Automated cross-version analysis comparing each version with both the original baseline and its immediate predecessor.
 
 ## Architecture
 
