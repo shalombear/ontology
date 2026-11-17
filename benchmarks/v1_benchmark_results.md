@@ -4,14 +4,16 @@ This report covers tests S1-S4 for ZIM path-resolution caching, compared with th
 
 ## Results
 
-### Total Execution Time
+### Execution Time and Peak Python Memory
 
-| Test | Seed | Depth | v0 elapsed (seconds) | v1 elapsed (seconds) | Reduction |
-|---|---|---:|---:|---:|---:|
-| S1 | Alphabet | 3 | 511.65 | 439.23 | 14.15% |
-| S2 | Alphabet | 4 | 28,015.76 | 23,471.03 | 16.22% |
-| S3 | Mathematics | 3 | 1,070.83 | 906.28 | 15.37% |
-| S4 | Mathematics | 4 | 67,248.22 | 47,655.21 | 29.14% |
+| Test | Seed | Depth | v0 elapsed (seconds) | v1 elapsed (seconds) | Elapsed time reduction | v0 peak Python memory (MiB) | v1 peak Python memory (MiB) |
+|---|---|---:|---:|---:|---:|---:|---:|
+| S1 | Alphabet | 3 | 511.65 | 439.23 | 14.15% | 33.54 | 35.04 |
+| S2 | Alphabet | 4 | 28,015.76 | 23,471.03 | 16.22% | 108.45 | 143.44 |
+| S3 | Mathematics | 3 | 1,070.83 | 906.28 | 15.37% | 30.28 | 30.02 |
+| S4 | Mathematics | 4 | 67,248.22 | 47,655.21 | 29.14% | 162.31 | 223.92 |
+
+Peak Python memory covers allocations tracked by `tracemalloc`.
 
 ### ZIM Operations
 
@@ -75,9 +77,9 @@ Percentages are rounded independently. These measurements are separate from the 
 
 ### Effect of Path-Resolution Caching
 
-v1 reduced elapsed time by 14.15-29.14% across S1-S4. ZIM operation counts fell by 51.79-76.96%, consistent with avoiding repeated resolution of previously encountered paths.
+v1 reduced elapsed time by 14.15% to 29.14% across S1 through S4. ZIM operation counts fell by 51.79% to 76.96%, consistent with avoiding repeated resolution of previously encountered paths.
 
-The reduction in operation counts exceeded the reduction in elapsed time. Counted ZIM operations have different costs, and caching leaves other work, including HTML parsing, exclusion, link extraction, and database storage.
+Peak Python memory rose by 32.26% in S2 and 37.96% in S4, the two depth 4 tests, while changing by less than 5% in either depth 3 test.
 
 ### Remaining Costs
 
