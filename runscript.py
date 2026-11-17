@@ -9,7 +9,7 @@ from time import perf_counter
 from urllib.parse import unquote
 
 import sqlalchemy as sa
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Tag, SoupStrainer
 from libzim.reader import Archive
 from sqlalchemy.dialects.sqlite import insert
 
@@ -17,6 +17,7 @@ from database import engine, articles, edges, seeds, seed_nodes, db_path
 
 projects = Path(__file__).resolve().parent.parent
 zim_path = projects / 'data' / 'wiki' / 'wikipedia_en_all_nopic_2026-06.zim'
+
 
 benchmark = {
     'zim_operations': 0,
@@ -72,7 +73,7 @@ def resolve_path(zim, entry, path_cache):
     benchmark['zim_time'] += perf_counter() - start
     if b'http-equiv="refresh"' in bytes(content[:512]):
         start_parse = perf_counter()
-        soup = BeautifulSoup(bytes(content), 'html.parser')
+        soup = BeautifulSoup(bytes(content), 'lxml', parse_only=SoupStrainer('meta', attrs={'http-equiv': 'refresh'}))
         refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
         benchmark['parse_time'] += perf_counter() - start_parse
 
@@ -117,11 +118,15 @@ def get_children(zim, path, path_cache):
     benchmark['zim_operations'] += 1
     benchmark['zim_time'] += perf_counter() - start
     start = perf_counter()
-    soup = BeautifulSoup(html, 'html.parser')
+    soup = BeautifulSoup(html, 'lxml', parse_only=SoupStrainer(id='mw-content-text'))
     article = soup.select_one('#mw-content-text .mw-parser-output')
     benchmark['parse_time'] += perf_counter() - start
 
     if article is None:
+        start = perf_counter()
+        soup = BeautifulSoup(html, 'lxml')
+        benchmark['parse_time'] += perf_counter() - start
+
         if soup.select_one('link[href$="download_error_placeholder.css"]'):
             print(f'ZIM article unavailable: {path}', flush=True)
             return set()
@@ -176,7 +181,6 @@ def get_children(zim, path, path_cache):
     resolved_paths.discard(path)
 
     benchmark['link_processing_time'] += perf_counter() - start
-
     return resolved_paths
 
 
