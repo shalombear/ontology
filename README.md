@@ -10,7 +10,7 @@ Starting from a specified Wikipedia article, the crawler traverses internal link
 
 The architecture supports multiple independent seed articles, configurable traversal depths, and reuse of previously extracted article relationships.
 
-The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching and single-pass link extraction that skips excluded HTML subtrees.
+The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching, single-pass link extraction that skips excluded HTML subtrees, and faster HTML parsing.
 
 ## Features
 
@@ -43,9 +43,9 @@ Implements the crawling workflow:
 3. Resolve the seed article and initialize its traversal state.
 4. Traverse articles breadth-first, reusing stored relationships when available.
 5. For unscanned articles, collect internal links in a single traversal that skips excluded HTML subtrees, then resolve their destinations.
-6. Persist article relationships and update discovery depth and expansion status for the current seed.
-8. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
-9. Append benchmark measurements to the results CSV.
+6. Persist article relationships and update discovery depth and expansion status for the current seed. 
+7. Collect performance metrics for extraction, traversal, database operations, memory usage, and execution time.
+8. Append benchmark measurements to the results CSV.
 
 ### `database.py`
 
@@ -103,7 +103,8 @@ projects/
     ├── benchmarks/
     │   ├── results.csv
     │   ├── v0_benchmark_results.md
-    │   ├── v1_benchmark_results.md   
+    │   ├── v1_benchmark_results.md 
+    │   ├── v2_benchmark_results.md  
     │   └── benchmark_results.md
     ├── database.py
     ├── runscript.py
@@ -117,14 +118,11 @@ Benchmark findings and optimization decisions are documented in version-specific
 
 ## Requirements
 
-Initial development environment:
-
 - Python 3.9.6
 - SQLAlchemy 2.0
-- libzim Python bindings
+- libzim
 - BeautifulSoup4
-
-Additional dependencies may be required depending on the development environment.
+- lxml
 
 ## Current Status
 
