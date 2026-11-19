@@ -8,7 +8,7 @@ from pathlib import Path
 from time import perf_counter
 from urllib.parse import unquote
 
-from lxml import html as lhtml
+from lxml import etree, html as lhtml
 import sqlalchemy as sa
 from libzim.reader import Archive
 from sqlalchemy.dialects.sqlite import insert
@@ -17,6 +17,11 @@ from database import engine, articles, edges, seeds, seed_nodes, db_path
 
 projects = Path(__file__).resolve().parent.parent
 zim_path = projects / 'data' / 'wiki' / 'wikipedia_en_all_nopic_2026-06.zim'
+article_html_parser = lhtml.HTMLParser(encoding='UTF-8', remove_comments=True)
+article_container_xpath = etree.XPath(
+    'id("mw-content-text")/descendant::*[contains(concat(" ", normalize-space(@class), " "), " mw-parser-output ")][1]'
+)
+meta_refresh_xpath = etree.XPath('boolean(//meta[@http-equiv="refresh"])')
 
 benchmark = {
     'zim_operations': 0,
@@ -76,7 +81,7 @@ def resolve_path(zim, entry, path_cache):
     if has_mrm:
         start_parse = perf_counter()
         document = lhtml.document_fromstring(bytes(content))
-        refresh = document.xpath('boolean(//meta[@http-equiv="refresh"])')
+        refresh = meta_refresh_xpath(document)
         benchmark['parse_time'] += perf_counter() - start_parse
 
         if refresh:
@@ -120,16 +125,12 @@ def get_children(zim, path, path_cache):
     benchmark['zim_time'] += perf_counter() - start
 
     start = perf_counter()
-    item = entry.get_item()
-    content = item.content
-    html = bytes(content).decode('utf-8')
+    html = bytes(entry.get_item().content)
     benchmark['zim_operations'] += 1
     benchmark['zim_time'] += perf_counter() - start
     start = perf_counter()
-    document = lhtml.document_fromstring(html)
-    matches = document.xpath(
-        '(//*[@id="mw-content-text"]//*[contains(concat(" ", normalize-space(@class), " "), " mw-parser-output ")])[1]'
-    )
+    document = lhtml.document_fromstring(html, parser=article_html_parser)
+    matches = article_container_xpath(document)
     article = matches[0] if matches else None
     benchmark['parse_time'] += perf_counter() - start
 
