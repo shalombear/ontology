@@ -8,8 +8,8 @@ from pathlib import Path
 from time import perf_counter
 from urllib.parse import unquote
 
+from lxml import html as lhtml
 import sqlalchemy as sa
-from bs4 import BeautifulSoup, Tag, SoupStrainer
 from libzim.reader import Archive
 from sqlalchemy.dialects.sqlite import insert
 
@@ -17,7 +17,6 @@ from database import engine, articles, edges, seeds, seed_nodes, db_path
 
 projects = Path(__file__).resolve().parent.parent
 zim_path = projects / 'data' / 'wiki' / 'wikipedia_en_all_nopic_2026-06.zim'
-
 
 benchmark = {
     'zim_operations': 0,
@@ -52,6 +51,7 @@ def batches(items, size=1000):
 
 
 def resolve_path(zim, entry, path_cache):
+
     original_path = entry.path
 
     if original_path in path_cache:
@@ -68,13 +68,15 @@ def resolve_path(zim, entry, path_cache):
         return resolved_path
 
     start = perf_counter()
-    content = entry.get_item().content
+    item = entry.get_item()
+    content = item.content
     benchmark['zim_operations'] += 1
     benchmark['zim_time'] += perf_counter() - start
-    if b'http-equiv="refresh"' in bytes(content[:512]):
+    has_mrm = b'http-equiv="refresh"' in bytes(content[:512])
+    if has_mrm:
         start_parse = perf_counter()
-        soup = BeautifulSoup(bytes(content), 'lxml', parse_only=SoupStrainer('meta', attrs={'http-equiv': 'refresh'}))
-        refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
+        document = lhtml.document_fromstring(bytes(content))
+        refresh = document.xpath('boolean(//meta[@http-equiv="refresh"])')
         benchmark['parse_time'] += perf_counter() - start_parse
 
         if refresh:
@@ -83,6 +85,10 @@ def resolve_path(zim, entry, path_cache):
             trailing_slash = target.endswith('/')
             target = posixpath.normpath(posixpath.join(posixpath.dirname(entry.path), target)).lstrip('/')
             target += '/' if trailing_slash and not target.endswith('/') else ''
+
+            if target in path_cache:
+                path_cache[original_path] = path_cache[target]
+                return path_cache[original_path]
 
             start = perf_counter()
             target_entry = zim.get_entry_by_path(target)
@@ -114,56 +120,65 @@ def get_children(zim, path, path_cache):
     benchmark['zim_time'] += perf_counter() - start
 
     start = perf_counter()
-    html = bytes(entry.get_item().content).decode('utf-8')
+    item = entry.get_item()
+    content = item.content
+    html = bytes(content).decode('utf-8')
     benchmark['zim_operations'] += 1
     benchmark['zim_time'] += perf_counter() - start
     start = perf_counter()
-    soup = BeautifulSoup(html, 'lxml', parse_only=SoupStrainer(id='mw-content-text'))
-    article = soup.select_one('#mw-content-text .mw-parser-output')
+    document = lhtml.document_fromstring(html)
+    matches = document.xpath(
+        '(//*[@id="mw-content-text"]//*[contains(concat(" ", normalize-space(@class), " "), " mw-parser-output ")])[1]'
+    )
+    article = matches[0] if matches else None
     benchmark['parse_time'] += perf_counter() - start
 
     if article is None:
         start = perf_counter()
-        soup = BeautifulSoup(html, 'lxml')
-        benchmark['parse_time'] += perf_counter() - start
 
-        if soup.select_one('link[href$="download_error_placeholder.css"]'):
+        if any(link.get('href', '').endswith('download_error_placeholder.css') for link in document.iter('link')):
             print(f'ZIM article unavailable: {path}', flush=True)
             return set()
+        benchmark['parse_time'] += perf_counter() - start
+
 
         print(f'\nExtraction Failed: {path}')
         print(f'MIME type: {entry.get_item().mimetype}')
         print(f'HTML length: {len(html)}')
-        print(f'Page title: {soup.title}')
-        print(f'Head: {soup.head}')
-        print(f'Body: {soup.body}')
+        print('Page title:', document.findtext('head/title'))
+        print('Head:', *(lhtml.tostring(node, encoding='unicode') for node in document.findall('head')))
+        print('Body:', *(lhtml.tostring(node, encoding='unicode') for node in document.findall('body')))
         raise RuntimeError(f'Article container missing: {path}')
+
 
     start = perf_counter()
     paths = set()
-    stack = list(article.children)
+    stack = list(article.iterchildren())
 
     while stack:
         element = stack.pop()
-        if not isinstance(element, Tag):
+        if not isinstance(element.tag, str):
             continue
 
-        classes = element.get('class') or []
-        if element.name in excluded_tags or excluded_classes.intersection(classes):
+        classes = element.get('class', '').split()
+        if element.tag in excluded_tags or excluded_classes.intersection(classes):
             continue
 
-        if element.name == 'a' and element.has_attr('href'):
-            href = element['href']
+        if element.tag == 'a' and 'href' in element.attrib:
+            href = element.attrib['href']
 
-            if not href.startswith(('#', 'http:', 'https:', '//')) and 'external' not in classes:
-                paths.add(unquote(href.split('#', 1)[0]))
+            eligible = (not href.startswith(('#', 'http:', 'https:', '//')) and 'external' not in classes)
+            if eligible:
+                normalized_path = unquote(href.split('#', 1)[0])
+                paths.add(normalized_path)
 
-        stack.extend(element.children)
+        stack.extend(element.iterchildren())
 
     resolved_paths = set()
 
     for child_path in paths:
-        if child_path in path_cache:
+        cached = child_path in path_cache
+        if cached:
             resolved_paths.add(path_cache[child_path])
             continue
 
