@@ -10,7 +10,7 @@ Starting from a specified Wikipedia article, the crawler traverses internal link
 
 The architecture supports multiple independent seed articles, configurable traversal depths, and reuse of previously extracted article relationships.
 
-The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching, single-pass link extraction that skips excluded HTML subtrees, and faster HTML parsing.
+The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching, single-pass link extraction that skips excluded HTML subtrees, and selective HTML tree construction using BeautifulSoup’s SoupStrainer.
 
 ## Features
 
@@ -69,7 +69,7 @@ This design permits overlapping crawls without unnecessarily repeating previousl
 Automates the benchmark suite across multiple traversal configurations.
 
 1. Accept an optimization version identifier or retrieve the current Git commit hash.
-2. Execute 10 benchmark test cases comprising 16 crawler executions.
+2. Run the configured benchmark cases.
 3. Reset the SQLite database between independent test cases.
 4. Preserve database state between consecutive crawls within paired tests.
 5. Pass the version and test identifier to `runscript.py`.
@@ -104,7 +104,8 @@ projects/
     │   ├── results.csv
     │   ├── v0_benchmark_results.md
     │   ├── v1_benchmark_results.md 
-    │   ├── v2_benchmark_results.md  
+    │   ├── v2_benchmark_results.md
+    │   ├── v3_benchmark_results.md  
     │   └── benchmark_results.md
     ├── database.py
     ├── runscript.py
@@ -126,7 +127,7 @@ Benchmark findings and optimization decisions are documented in version-specific
 
 ## Current Status
 
-Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, CSV result collection, and comparative benchmark analysis have been implemented. Baseline and path-cache comparisons are complete for tests S1-S4. Single-pass link extraction has been implemented and manually tested.
+Core extraction, traversal, persistence, performance instrumentation, automated benchmark execution, CSV result collection, and comparative benchmark analysis have been implemented. Comparative benchmarking for S1 through S4 is complete through v3.
 
 The project remains under active development and is not considered production-ready.
 
