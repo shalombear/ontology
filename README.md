@@ -122,7 +122,6 @@ Benchmark findings and optimization decisions are documented in version-specific
 - Python 3.9.6
 - SQLAlchemy 2.0
 - libzim
-- BeautifulSoup4
 - lxml
 
 ## Current Status
