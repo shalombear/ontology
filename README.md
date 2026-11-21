@@ -10,7 +10,7 @@ Starting from a specified Wikipedia article, the crawler traverses internal link
 
 The architecture supports multiple independent seed articles, configurable traversal depths, and reuse of previously extracted article relationships.
 
-The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching, single-pass link extraction that skips excluded HTML subtrees, and selective HTML tree construction using BeautifulSoup’s SoupStrainer.
+The current implementation provides functional crawling, persistent graph storage, performance instrumentation, automated benchmark execution, and CSV result collection. Initial baseline testing and comparative performance analysis are complete. Implemented optimizations include path-resolution caching, single-pass link extraction that skips excluded HTML subtrees, and selective HTML tree construction.
 
 ## Features
 
